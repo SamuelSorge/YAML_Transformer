@@ -1,0 +1,78 @@
+# Required TOSCA Definitions version string
+tosca_definitions_version: tosca_simple_yaml_1_0
+
+# Optional. default namespace (schema, types version)
+tosca_default_namespace: http://types.opentosca.org
+
+# Optional name of this service template
+template_name: Websphere_DB2
+
+# Optional author of this service template
+template_author: DevPro
+
+# Optional version of this service template
+template_version: 1.0
+
+description: Service Template for Websphere on DB2
+
+relationship_types:
+  managedBy:
+    derived_from: tosca.relationships.ConnectsTo
+  
+  profiledOn:
+    derived_from: tosca.relationships.HostedOn
+
+node_templates:
+  VmApache:
+    type: Server
+    properties:
+      NumCpus: 1
+      Memory: 1024
+    capabilities:
+      VmApache_WS_ND:
+        type: tosca.capabilities.Container
+      VMApache_DB2:
+        type: tosca.capabilities.DatabaseEndpoint
+    requirements:
+      - VmApache_networks: NetworkAttachmentCapability
+      - VmApache_container: ServerContainerCapability
+      - VmApache_volumes: VolumeAttachmentCapability
+  
+  WebsphereNetworkDeployment:
+    type: tosca.nodes.WebServer
+    properties:
+    capabilities:
+    requirements:
+      - WS_ND_HostedOn_VmApache: VmApache
+        relationship_type: tosca.relationships.HostedOn
+      - WS_ND_ConnectsTo_DB2: DB2
+        relationship_type: tosca.relationships.ConnectsTo
+    artifacts:
+      - at-WebSphereNetworkDeployment-install: scripts/websphere.sh
+        type: tosca.artifacts.impl.Bash
+    
+  DB2:
+    type: tosca.nodes.DBMS
+    properties:
+    capabilities:
+    requirements:
+      - DB2_HostedOn_VmApache: VmApache
+        relationship_type: tosca.relationships.HostedOn
+    artifacts:
+      - at-DB2-install: scripts/db2.sh
+        type: tosca.artifacts.impl.Bash
+  
+  DeploymentManager:
+    type: tosca.nodes.WebApplication
+    requirements:
+    - DeplMan_profiledOn_WS_ND: WebsphereNetworkDeployment
+      relationship_type: profiledOn 
+  
+  AppServer:
+    type: tosca.nodes.WebServer
+    requirements:
+    - AppServer_profiledOn_WS_ND: WebsphereNetworkDeployment
+      relationship_type: profiledOn 
+    - AppServer_managedBy_DepplMan: DeploymentManager
+      relationship_type: managedBy 
+  
