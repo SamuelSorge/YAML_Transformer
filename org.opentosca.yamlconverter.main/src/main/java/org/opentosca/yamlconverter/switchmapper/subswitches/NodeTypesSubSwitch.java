@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import javax.xml.namespace.QName;
+
 import org.opentosca.model.tosca.TArtifactReference;
 import org.opentosca.model.tosca.TArtifactTemplate;
 import org.opentosca.model.tosca.TCapabilityDefinition;
@@ -188,9 +190,10 @@ public class NodeTypesSubSwitch extends AbstractSubSwitch {
 		for (final Map<String, Object> artifact : artifacts) {
 			String artifactName = "";
 			String artifactFileUri = "";
-			String artifactType = "";
+			QName artifactTypeQName = null;
 			String artifactDescription = "";
 			String artifactMimeType = "";
+			String artifactType = "";
 			Map<String, Object> additionalProperties = new HashMap<String, Object>();
 
 			for (final Entry<String, Object> artifactEntry : artifact.entrySet()) {
@@ -198,6 +201,7 @@ public class NodeTypesSubSwitch extends AbstractSubSwitch {
 				switch (artifactEntry.getKey()) {
 				case "type":
 					artifactType = (String) value;
+					artifactTypeQName = getTypeMapperUtil().getCorrectTypeReferenceAsQName(artifactType, ElementType.ARTIFACT_TYPE);
 					break;
 				case "description":
 					artifactDescription = (String) value;
@@ -218,29 +222,31 @@ public class NodeTypesSubSwitch extends AbstractSubSwitch {
 					break;
 				}
 			}
-			addArtifactTemplate(artifactTemplates, artifactName, artifactFileUri, artifactType, additionalProperties);
-			addImplementationArtifact(implementationArtifacts, artifactName, artifactType);
+			addArtifactTemplate(artifactTemplates, artifactName, artifactFileUri, artifactTypeQName, artifactType, additionalProperties);
+			addImplementationArtifact(implementationArtifacts, artifactName, artifactTypeQName);
 		}
 	}
 
-	private void addImplementationArtifact(TImplementationArtifacts implementationArtifacts, String artifactName, String artifactType) {
+	private void addImplementationArtifact(TImplementationArtifacts implementationArtifacts, String artifactName, QName artifactType) {
 		final TImplementationArtifacts.ImplementationArtifact implementationArtifact = new TImplementationArtifacts.ImplementationArtifact();
 		implementationArtifact.setArtifactRef(getNamespaceUtil().toTnsQName(artifactName));
-		implementationArtifact.setArtifactType(getTypeMapperUtil().getCorrectTypeReferenceAsQName(artifactType, ElementType.ARTIFACT_TYPE));
+		implementationArtifact.setArtifactType(artifactType);
 		implementationArtifacts.getImplementationArtifact().add(implementationArtifact);
 	}
 
 	private TArtifactTemplate addArtifactTemplate(List<TArtifactTemplate> artifactTemplates, String artifactName, String artifactFileUri,
-			String artifactType, Map<String, Object> additionalProperties) {
+			QName artifactType, String originalArtifactType, Map<String, Object> additionalProperties) {
 		final TArtifactTemplate artifactTemplate = new TArtifactTemplate();
+
 		artifactTemplate.setName(artifactName);
 		artifactTemplate.setId(artifactName);
-		artifactTemplate.setType(getTypeMapperUtil().getCorrectTypeReferenceAsQName(artifactType, ElementType.ARTIFACT_TYPE));
+		artifactTemplate.setType(artifactType);
 
 		setArtifactReferencesForArtifactTemplate(artifactFileUri, artifactTemplate);
 
 		final TEntityTemplate.Properties properties = new TEntityTemplate.Properties();
-		properties.setAny(getAnyMapForProperties(additionalProperties, artifactType));
+		properties.setAny(getAnyMapForProperties(additionalProperties,
+				getTypeMapperUtil().getCorrectTypeReferenceAsQNameForProperties(originalArtifactType, ElementType.ARTIFACT_TYPE)));
 		artifactTemplate.setProperties(properties);
 
 		artifactTemplates.add(artifactTemplate);
